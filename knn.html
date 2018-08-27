@@ -1,0 +1,184 @@
+<html>
+<head>
+<meta charset="utf-8" /> 
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<title>kNN</title>
+</head>
+<body>
+    <div class="col-md-6">
+    <form id="form">
+        <div class="form-group">
+            <label>Instâncias de treino</label>
+            <textarea class="form-control" id="samples" cols="50" rows="20">
+[
+    //id, tempoEspera, preco, classe
+    [1, 0.70, 0.40, "SAT"],
+    [2, 0.40, 0.50, "SAT"],
+    [3, 0.61, 0.40, "SAT"],
+    [4, 0.90, 0.70, "SAT"],
+    [5, 0.80, 0.30, "SAT"],
+    [6, 0.60, 1.00, "SAT"],
+    [7, 0.20, 0.60, "INS"],
+    [8, 0.40, 0.30, "INS"],
+    [9, 0.61, 0.20, "INS"],
+    [10, 0.60, 0.43, "INS"],
+    [11, 0.50, 0.10, "INS"],
+    [12, 1.00, 0.20, "INS"]
+]                
+            </textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Instância de teste:</label>
+            <input class="form-control" type="text" id="newInstance" value='["nova", 0.3, 0.7, "?"]'>
+        </div>
+
+        <div class="form-group">
+            <label>Tamanho do K <span id="ksize">(1)</span>:
+            <input class="form-control" type="range" min="1" max="12" step="1" id="k" value="1" oninput="showK(this.value)" onchange="showK(this.value)" >
+            
+            </label>
+            
+        </div>
+
+        <div class="form-group">
+            <label>Função de distância:</label>
+            <label class="radio-inline">
+                <input type="radio" name="distance_function" value="manhattan_distance" checked="checked">Distância de Manhattan
+            </label>
+            <label class="radio-inline">
+                <input type="radio" name="distance_function" value="euclidian_distance">Distância Euclidiana
+            </label>
+        </div>
+        
+        <div class="col-md-12">        
+            <input class="btn btn-default" type="submit" value="Classificar">        
+        </div>
+    </form>
+    </div>
+    <div class="col-md-6">
+        <div id="resultDiv" class="well"></div>
+    </div>
+</body>    
+</html>
+
+
+<script>
+
+let samples = [];
+let newInstance = [];
+let k = 1;
+let distance_function = "manhattan_distance";
+
+let neighbors_finder = {
+
+    manhattan_distance: (p1, p2) => {
+        let a = p1[1] - p2[1];
+        let b = p1[2] - p2[2];
+
+        let distance = Math.abs(a) + Math.abs(b);
+
+        return Math.abs(distance);
+    },
+
+    euclidian_distance: (p1, p2) => {
+        let a = p1[1] - p2[1];
+        let b = p1[2] - p2[2];
+
+        a = Math.pow(a, 2);
+        b = Math.pow(b, 2);
+
+        let distance = Math.sqrt((a + b), 2)
+
+        return distance;
+    },
+
+    find: (samples, newInstance, distance_function) => {
+
+        let neighbors = [];
+        for (let sample of samples) {
+            let distance = neighbors_finder[distance_function](sample, newInstance);
+            neighbors.push([sample[0], sample[3], distance]); // [id , classe, distância]
+        }
+
+        neighbors.sort((a, b) => a[2] - b[2]);
+
+        return neighbors;
+    }    
+};
+
+
+let election = (sortedNeighbors, k) => {
+    let knn = sortedNeighbors.slice(0, k);
+
+    let votes = {};
+    for (let neighbor of knn) {
+        
+        let classLabel = neighbor[1];
+        
+        if (typeof votes[classLabel] === "undefined") {
+            votes[classLabel] = 0;
+        } 
+        votes[classLabel] += 1;
+    }
+
+    let highest = 0;
+    let winner = null;
+    
+    for (var [classLabel, numVotes] of Object.entries(votes)) {
+        if (numVotes > highest) {
+            highest = numVotes;
+            winner = classLabel;
+        } else if(numVotes == highest) {
+            winner = null; 
+        }
+    }
+
+    return {sortedNeighbors, knn, winner, highest};
+}
+
+
+
+let print_result = (sortedNeighbors, knn, winner, highest, k, dfname) => {
+
+    sortedNeighbors = JSON.stringify(sortedNeighbors).replace(/\]\,\[/g, '],<br>[');
+    knn = JSON.stringify(knn).replace(/\]\,\[/g, '],<br>[');
+
+    let result = `<code>${winner}</code> com ${highest} votos`;
+    if (winner === null) {
+        result = `<code>Empate</code> (com ${highest} votos)`
+    }
+
+    document.getElementById("resultDiv").innerHTML = `
+    <label>Vizinhos ordenados pela proximidade ([id , classe, distância]):</label><br> ${sortedNeighbors}
+    <br><br>
+    <label>${k}-NN ([id , classe, distância]):</label><br>${knn}
+    <br><br>
+    <label>Resultado para K = ${k} e função de distância ${dfname}:</label><br> ${result}`;
+}
+
+let onsubmit = () => {
+
+    samples = eval(document.getElementById("samples").value);
+    newInstance = eval(document.getElementById("newInstance").value);
+    k = parseInt(document.getElementById("k").value);
+    distance_function = document.getElementById("form").elements["distance_function"].value;
+
+
+    let neighbors = neighbors_finder.find(samples, newInstance, distance_function);
+    let {sortedNeighbors, knn, winner, highest} = election(neighbors, k);    
+    
+    let dfname = (distance_function == "euclidian_distance") ? "Euclidiana" : "Manhattan";
+    print_result(sortedNeighbors, knn, winner, highest, k, dfname);
+
+    return false;   
+}
+
+let showK = (k) => {
+    document.getElementById("ksize").innerHTML = `(${k})`;
+}
+
+document.getElementById("form").onsubmit = onsubmit;
+document.getElementById("k").value = 1;
+
+</script>
