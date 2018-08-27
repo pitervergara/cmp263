@@ -6,7 +6,7 @@
 </head>
 <body>
     <div class="col-md-6">
-    <form id="form">
+    <form id="form" onsubmit="compute(); return false;">
         <div class="form-group">
             <label>Instâncias de treino</label>
             <textarea class="form-control" id="samples" cols="50" rows="20">
@@ -157,7 +157,7 @@ let print_result = (sortedNeighbors, knn, winner, highest, k, dfname) => {
     <label>Resultado para K = ${k} e função de distância ${dfname}:</label><br> ${result}`;
 }
 
-let onsubmit = () => {
+let compute = () => {
 
     samples = eval(document.getElementById("samples").value);
     newInstance = eval(document.getElementById("newInstance").value);
@@ -170,15 +170,18 @@ let onsubmit = () => {
     
     let dfname = (distance_function == "euclidian_distance") ? "Euclidiana" : "Manhattan";
     print_result(sortedNeighbors, knn, winner, highest, k, dfname);
-
-    return false;   
 }
 
 let showK = (k) => {
     document.getElementById("ksize").innerHTML = `(${k})`;
+    compute();
 }
 
-document.getElementById("form").onsubmit = onsubmit;
+
+document.getElementById("form").elements["distance_function"][0].onclick = compute;
+document.getElementById("form").elements["distance_function"][1].onclick = compute;
 document.getElementById("k").value = 1;
+
+compute();
 
 </script>
